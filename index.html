@@ -1,0 +1,266 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Glintwave — demo</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0a0f; overflow: hidden; }
+  canvas { display: block; }
+  .controls {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-family: sans-serif;
+    background: rgba(20, 20, 26, 0.7);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px;
+    backdrop-filter: blur(6px);
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+  .row { display: flex; flex-direction: column; gap: 4px; }
+  .row-label {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #999;
+  }
+  .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  button {
+    font-size: 12px;
+    padding: 6px 10px;
+    background: #1a1a22;
+    color: #ccc;
+    border: 1px solid #333;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: capitalize;
+  }
+  button.active { background: #f5d98b; color: #111; border-color: #f5d98b; }
+  input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
+    background: #1a1a22;
+    color: #f5d98b;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .hint { font-size: 10px; color: #777; }
+  .color-row { display: flex; align-items: center; gap: 6px; }
+  .color-row input[type="color"] {
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: none;
+    flex-shrink: 0;
+  }
+  .color-row input[type="number"] { width: 52px; flex-shrink: 0; }
+  .color-row .pct { font-size: 11px; color: #999; }
+  .color-row button { padding: 4px 8px; flex-shrink: 0; }
+</style>
+<canvas id="c"></canvas>
+<div class="controls">
+  <div class="row">
+    <div class="row-label">Background</div>
+    <input type="color" id="backgroundPicker" value="#0a0a0f" />
+  </div>
+  <div class="row">
+    <div class="row-label">Direction (degrees, 0 = up)</div>
+    <input type="number" id="directionInput" min="0" max="360" value="90" />
+    <div class="btn-group" id="directionPresets">
+      <button data-deg="0">Up</button>
+      <button data-deg="90" class="active">Right</button>
+      <button data-deg="180">Down</button>
+      <button data-deg="270">Left</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="row-label">Fluid effect (hover)</div>
+    <div class="btn-group" id="effectRow"></div>
+    <div class="hint">Applies continuously while hovering. Click-burst is temporarily disabled.</div>
+  </div>
+  <div class="row">
+    <div class="row-label">Speed (px/s)</div>
+    <input type="number" id="speedInput" min="0" value="120" />
+  </div>
+  <div class="row">
+    <div class="row-label">Viscosity (0–1)</div>
+    <input type="number" id="viscosityInput" min="0" max="1" step="0.05" value="0.5" />
+  </div>
+  <div class="row">
+    <div class="row-label">Pointer radius (px)</div>
+    <input type="number" id="radiusInput" min="0" value="150" />
+  </div>
+  <div class="row">
+    <div class="row-label">Pointer strength</div>
+    <input type="number" id="strengthInput" min="0" value="200" />
+  </div>
+  <div class="row">
+    <div class="row-label">Glitter density</div>
+    <input type="number" id="densityInput" min="1" value="10" />
+  </div>
+  <div class="row">
+    <div class="row-label">Glitter colors</div>
+    <div id="colorList"></div>
+    <button id="addColorBtn">+ Add color</button>
+  </div>
+</div>
+<script src="glitter-shape.js"></script>
+<script src="fluid-effects.js"></script>
+<script src="flow.js"></script>
+<script src="glitter-collection.js"></script>
+<script src="glintwave.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var canvas = document.getElementById("c");
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  var glintwave = new Glintwave(canvas, {});
+
+  // ---------- control panel wiring — every control just calls setOptions() ----------
+
+  var backgroundPicker = document.getElementById("backgroundPicker");
+  backgroundPicker.addEventListener("input", function () {
+    glintwave.setOptions({ background: backgroundPicker.value });
+  });
+
+  var directionInput = document.getElementById("directionInput");
+  var directionPresetButtons = document.querySelectorAll("#directionPresets button");
+
+  function setDirection(deg) {
+    directionInput.value = deg;
+    glintwave.setOptions({ direction: deg });
+    for (var b = 0; b < directionPresetButtons.length; b++) {
+      directionPresetButtons[b].classList.toggle("active", parseFloat(directionPresetButtons[b].dataset.deg) === deg);
+    }
+  }
+  directionInput.addEventListener("input", function () {
+    var deg = parseFloat(directionInput.value);
+    if (!isNaN(deg)) setDirection(deg);
+  });
+  for (var di = 0; di < directionPresetButtons.length; di++) {
+    directionPresetButtons[di].addEventListener("click", function (e) {
+      setDirection(parseFloat(e.currentTarget.dataset.deg));
+    });
+  }
+
+  // Built from FluidEffects' own keys (fluid-effects.js) rather than
+  // hardcoded buttons, so adding a new effect there is all it takes to get a
+  // button here too.
+  var effectRow = document.getElementById("effectRow");
+  Object.keys(FluidEffects).forEach(function (name, index) {
+    var btn = document.createElement("button");
+    btn.textContent = name;
+    if (index === 0) btn.classList.add("active");
+    btn.addEventListener("click", function (e) {
+      glintwave.setOptions({ fluidEffect: name });
+      var buttons = effectRow.querySelectorAll("button");
+      for (var b = 0; b < buttons.length; b++) {
+        buttons[b].classList.toggle("active", buttons[b] === e.currentTarget);
+      }
+    });
+    effectRow.appendChild(btn);
+  });
+
+  function bindNumberInput(inputId, optionName) {
+    var input = document.getElementById(inputId);
+    input.addEventListener("input", function () {
+      var value = parseFloat(input.value);
+      if (isNaN(value)) return;
+      var options = {};
+      options[optionName] = value;
+      glintwave.setOptions(options);
+    });
+  }
+
+  bindNumberInput("speedInput", "speed");
+  bindNumberInput("viscosityInput", "viscosity");
+  bindNumberInput("radiusInput", "pointerRadius");
+  bindNumberInput("strengthInput", "pointerStrength");
+  bindNumberInput("densityInput", "glitterDensity");
+
+  // ---------- glitter colors: add/remove/edit, each with its own density% ----------
+
+  var colorEntries = [
+    { color: "#fff8dc", density: 50 },
+    { color: "#f5d98b", density: 30 },
+    { color: "#ffd700", density: 20 },
+  ];
+  var colorList = document.getElementById("colorList");
+
+  function applyColors() {
+    glintwave.setOptions({ glitterColors: colorEntries });
+  }
+
+  function renderColorList() {
+    colorList.innerHTML = "";
+    colorEntries.forEach(function (entry, index) {
+      var row = document.createElement("div");
+      row.className = "color-row";
+
+      var colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.value = entry.color;
+      colorInput.addEventListener("input", function () {
+        entry.color = colorInput.value;
+        applyColors();
+      });
+
+      var densityInput = document.createElement("input");
+      densityInput.type = "number";
+      densityInput.min = "0";
+      densityInput.max = "100";
+      densityInput.value = entry.density;
+      densityInput.addEventListener("input", function () {
+        var value = parseFloat(densityInput.value);
+        if (isNaN(value)) return;
+        entry.density = value;
+        applyColors();
+      });
+
+      var pct = document.createElement("span");
+      pct.className = "pct";
+      pct.textContent = "%";
+
+      var removeBtn = document.createElement("button");
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", function () {
+        if (colorEntries.length <= 1) return; // always need at least one color
+        colorEntries.splice(index, 1);
+        renderColorList();
+        applyColors();
+      });
+
+      row.appendChild(colorInput);
+      row.appendChild(densityInput);
+      row.appendChild(pct);
+      row.appendChild(removeBtn);
+      colorList.appendChild(row);
+    });
+  }
+
+  document.getElementById("addColorBtn").addEventListener("click", function () {
+    colorEntries.push({ color: "#ffffff", density: 20 });
+    renderColorList();
+    applyColors();
+  });
+
+  renderColorList();
+})();
+</script>
