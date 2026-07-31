@@ -262,5 +262,34 @@
   });
 
   renderColorList();
+
+  // ---------- config export/import: pure helpers ----------
+
+  function buildExportConfig(options) {
+    return {
+      background: options.background,
+      direction: options.direction,
+      speed: options.speed,
+      viscosity: options.viscosity,
+      fluidEffect: options.fluidEffect,
+      pointerRadius: options.pointerRadius,
+      pointerStrength: options.pointerStrength,
+      glitterDensity: options.glitterDensity,
+      glitterColors: options.glitterColors,
+    };
+  }
+
+  function parseConfig(jsonText) {
+    var parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (e) {
+      return { ok: false, error: "Invalid JSON" };
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return { ok: false, error: "Invalid JSON" };
+    }
+    return { ok: true, config: parsed };
+  }
 })();
 </script>
