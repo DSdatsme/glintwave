@@ -278,6 +278,7 @@
   });
 
   renderColorList();
+  applyColors();
 
   // ---------- config export/import: pure helpers ----------
 
@@ -352,6 +353,23 @@
       return;
     }
     var config = result.config;
+
+    if (config.glitterColors !== undefined) {
+      var glitterColorsValid = Array.isArray(config.glitterColors) && config.glitterColors.length > 0;
+      if (glitterColorsValid) {
+        for (var gi = 0; gi < config.glitterColors.length; gi++) {
+          var entry = config.glitterColors[gi];
+          if (!entry || typeof entry !== "object" || entry.color === undefined || typeof entry.density !== "number") {
+            glitterColorsValid = false;
+            break;
+          }
+        }
+      }
+      if (!glitterColorsValid) {
+        showConfigStatus("Invalid glitterColors", true);
+        return;
+      }
+    }
 
     if (config.background !== undefined) backgroundPicker.value = config.background;
     if (config.direction !== undefined) {
