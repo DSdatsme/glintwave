@@ -52,6 +52,7 @@
     font-variant-numeric: tabular-nums;
   }
   .hint { font-size: 10px; color: #777; }
+  .hint.error { color: #e07a7a; }
   .color-row { display: flex; align-items: center; gap: 6px; }
   .color-row input[type="color"] {
     width: 30px;
@@ -111,6 +112,15 @@
     <div class="row-label">Glitter colors</div>
     <div id="colorList"></div>
     <button id="addColorBtn">+ Add color</button>
+  </div>
+  <div class="row">
+    <div class="row-label">Export / Import</div>
+    <div class="btn-group">
+      <button id="copyConfigBtn">Copy JSON</button>
+      <button id="downloadConfigBtn">Download JSON</button>
+      <button id="loadConfigBtn">Load JSON</button>
+    </div>
+    <div class="hint" id="configStatus"></div>
   </div>
 </div>
 <script src="glitter-shape.js"></script>
@@ -291,5 +301,40 @@
     }
     return { ok: true, config: parsed };
   }
+
+  // ---------- config export/import: UI wiring ----------
+
+  var configStatus = document.getElementById("configStatus");
+  var configStatusTimer = null;
+
+  function showConfigStatus(message, isError) {
+    configStatus.textContent = message;
+    configStatus.classList.toggle("error", !!isError);
+    if (configStatusTimer) clearTimeout(configStatusTimer);
+    configStatusTimer = setTimeout(function () {
+      configStatus.textContent = "";
+      configStatus.classList.remove("error");
+    }, isError ? 3000 : 1500);
+  }
+
+  document.getElementById("copyConfigBtn").addEventListener("click", function () {
+    var json = JSON.stringify(buildExportConfig(glintwave.options), null, 2);
+    navigator.clipboard.writeText(json).then(
+      function () { showConfigStatus("Copied!", false); },
+      function () { showConfigStatus("Copy failed", true); }
+    );
+  });
+
+  document.getElementById("downloadConfigBtn").addEventListener("click", function () {
+    var json = JSON.stringify(buildExportConfig(glintwave.options), null, 2);
+    var blob = new Blob([json], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "glintwave-config.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    showConfigStatus("Downloaded", false);
+  });
 })();
 </script>
