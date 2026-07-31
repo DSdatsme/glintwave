@@ -153,12 +153,15 @@
   var directionInput = document.getElementById("directionInput");
   var directionPresetButtons = document.querySelectorAll("#directionPresets button");
 
-  function setDirection(deg) {
-    directionInput.value = deg;
-    glintwave.setOptions({ direction: deg });
+  function syncDirectionButtons(deg) {
     for (var b = 0; b < directionPresetButtons.length; b++) {
       directionPresetButtons[b].classList.toggle("active", parseFloat(directionPresetButtons[b].dataset.deg) === deg);
     }
+  }
+  function setDirection(deg) {
+    directionInput.value = deg;
+    glintwave.setOptions({ direction: deg });
+    syncDirectionButtons(deg);
   }
   directionInput.addEventListener("input", function () {
     var deg = parseFloat(directionInput.value);
@@ -174,16 +177,19 @@
   // hardcoded buttons, so adding a new effect there is all it takes to get a
   // button here too.
   var effectRow = document.getElementById("effectRow");
+  function syncEffectButtons(effectName) {
+    var buttons = effectRow.querySelectorAll("button");
+    for (var b = 0; b < buttons.length; b++) {
+      buttons[b].classList.toggle("active", buttons[b].textContent === effectName);
+    }
+  }
   Object.keys(FluidEffects).forEach(function (name, index) {
     var btn = document.createElement("button");
     btn.textContent = name;
     if (index === 0) btn.classList.add("active");
-    btn.addEventListener("click", function (e) {
+    btn.addEventListener("click", function () {
       glintwave.setOptions({ fluidEffect: name });
-      var buttons = effectRow.querySelectorAll("button");
-      for (var b = 0; b < buttons.length; b++) {
-        buttons[b].classList.toggle("active", buttons[b] === e.currentTarget);
-      }
+      syncEffectButtons(name);
     });
     effectRow.appendChild(btn);
   });
@@ -335,6 +341,39 @@
     a.click();
     URL.revokeObjectURL(url);
     showConfigStatus("Downloaded", false);
+  });
+
+  document.getElementById("loadConfigBtn").addEventListener("click", function () {
+    var text = window.prompt("Paste a Glintwave config JSON:");
+    if (text === null) return; // user cancelled the prompt
+    var result = parseConfig(text);
+    if (!result.ok) {
+      showConfigStatus(result.error, true);
+      return;
+    }
+    var config = result.config;
+
+    if (config.background !== undefined) backgroundPicker.value = config.background;
+    if (config.direction !== undefined) {
+      directionInput.value = config.direction;
+      syncDirectionButtons(config.direction);
+    }
+    if (config.speed !== undefined) document.getElementById("speedInput").value = config.speed;
+    if (config.viscosity !== undefined) document.getElementById("viscosityInput").value = config.viscosity;
+    if (config.pointerRadius !== undefined) document.getElementById("radiusInput").value = config.pointerRadius;
+    if (config.pointerStrength !== undefined) document.getElementById("strengthInput").value = config.pointerStrength;
+    if (config.glitterDensity !== undefined) document.getElementById("densityInput").value = config.glitterDensity;
+    if (config.fluidEffect !== undefined) syncEffectButtons(config.fluidEffect);
+    if (Array.isArray(config.glitterColors)) {
+      colorEntries.length = 0;
+      config.glitterColors.forEach(function (entry) {
+        colorEntries.push({ color: entry.color, density: entry.density });
+      });
+      renderColorList();
+    }
+
+    glintwave.setOptions(config);
+    showConfigStatus("Loaded", false);
   });
 })();
 </script>
