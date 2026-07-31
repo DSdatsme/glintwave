@@ -116,7 +116,11 @@ Glintwave.prototype._glitterCountForArea = function () {
 Glintwave.prototype._spawnIntervalSec = function () {
   var diag = Math.sqrt(this.canvas.width * this.canvas.width + this.canvas.height * this.canvas.height);
   var secondsToCross = diag / this.options.speed;
-  return secondsToCross / this._glitterCountForArea();
+  var interval = secondsToCross / this._glitterCountForArea();
+  // Non-positive (zero/negative speed, zero-area canvas) has no meaningful
+  // "time to cross" — treat it as "never spawn via this cadence" instead of
+  // handing _loop's while-loop a <=0 interval it can never catch up past.
+  return interval > 0 ? interval : Infinity;
 };
 
 // Fills the canvas at construction time so it doesn't start empty and take
