@@ -79,7 +79,7 @@ Then open the printed local URL — `index.html` is the live demo and control pa
 - `glitter-collection.js` — owns the live fleck array and its spawn/despawn lifecycle.
 - `flow.js` — the physics rules (drift, pointer force, separation, restore/absorb) as pure functions.
 - `fluid-effects.js` — the named repel/attract effect registry.
-- `index.html` — demo page and control panel, built entirely on the public API above.
+- `index.html` — demo page and control panel, built entirely on the public API above. Includes Copy/Download/Load JSON controls for exporting or reloading a settings configuration.
 
 ## License
 
