@@ -57,7 +57,7 @@ Then open the printed local URL — `index.html` is the live demo and control pa
 | `viscosity` | `number` (0–1) | `0.5` | 0 = thin/watery, 1 = thick/viscous. Derives drag, restore rate, and absorb rate together. |
 | `minSize` / `maxSize` | `number` (px) | `1.4` / `2.4` | Size range a fleck is randomly drawn from. |
 | `glitterColors` | `{ color, density }[]` | gold/cream mix | Multiple colors with relative weights — doesn't need to sum to 100. |
-| `glitterDensity` | `number` | `10` | Flecks per 400×400px of canvas area — resolution-independent, not a flat count. |
+| `glitterDensity` | `number` | `10` | Flecks per 400×400px of canvas area — resolution-independent, not a flat count. Fleck-to-fleck separation is O(n²) per frame (`flow.js`'s `applySeparation`), so pushing this much past ~50 causes severe frame drops on typical screen sizes — the demo warns in the panel above that threshold. |
 | `fluidEffect` | `string` | `"repel"` | Key into the `FluidEffects` registry (`fluid-effects.js`) — currently `"repel"` or `"attract"`. |
 | `pointerRadius` | `number` (px) | `150` | How far the pointer's effect reaches. |
 | `pointerStrength` | `number` | `200` | How strong the pointer's effect is at its center. |

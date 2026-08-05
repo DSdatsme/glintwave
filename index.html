@@ -107,6 +107,7 @@
   <div class="row">
     <div class="row-label">Glitter density</div>
     <input type="number" id="densityInput" min="1" value="10" />
+    <div class="hint error" id="densityWarning" style="display: none;">High density causes severe lag (O(n²) separation cost) — keep it under ~50 for smooth performance.</div>
   </div>
   <div class="row">
     <div class="row-label">Glitter colors</div>
@@ -210,6 +211,19 @@
   bindNumberInput("radiusInput", "pointerRadius");
   bindNumberInput("strengthInput", "pointerStrength");
   bindNumberInput("densityInput", "glitterDensity");
+
+  // Separation cost is O(n^2) in fleck count (flow.js's applySeparation),
+  // so density values much past this start dropping frames — warn rather
+  // than silently letting the demo look "broken" when it's actually just slow.
+  var DENSITY_WARNING_THRESHOLD = 50;
+  var densityInput = document.getElementById("densityInput");
+  var densityWarning = document.getElementById("densityWarning");
+  function updateDensityWarning() {
+    var value = parseFloat(densityInput.value);
+    densityWarning.style.display = !isNaN(value) && value > DENSITY_WARNING_THRESHOLD ? "block" : "none";
+  }
+  densityInput.addEventListener("input", updateDensityWarning);
+  updateDensityWarning();
 
   // ---------- glitter colors: add/remove/edit, each with its own density% ----------
 
@@ -380,7 +394,10 @@
     if (config.viscosity !== undefined) document.getElementById("viscosityInput").value = config.viscosity;
     if (config.pointerRadius !== undefined) document.getElementById("radiusInput").value = config.pointerRadius;
     if (config.pointerStrength !== undefined) document.getElementById("strengthInput").value = config.pointerStrength;
-    if (config.glitterDensity !== undefined) document.getElementById("densityInput").value = config.glitterDensity;
+    if (config.glitterDensity !== undefined) {
+      densityInput.value = config.glitterDensity;
+      updateDensityWarning();
+    }
     if (config.fluidEffect !== undefined) syncEffectButtons(config.fluidEffect);
     if (Array.isArray(config.glitterColors)) {
       colorEntries.length = 0;
