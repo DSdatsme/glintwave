@@ -1,0 +1,9 @@
+{
+  "name": "glintwave",
+  "private": true,
+  "description": "A lightweight, framework-agnostic glitter flow background effect.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
