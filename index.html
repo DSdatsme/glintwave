@@ -1,9 +1,12 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Glintwave — demo</title>
 <style>
   html, body { margin: 0; height: 100%; background: #0a0a0f; overflow: hidden; }
-  canvas { display: block; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .controls {
     position: fixed;
     top: 12px;
@@ -67,14 +70,16 @@
   .color-row .pct { font-size: 11px; color: #999; }
   .color-row button { padding: 4px 8px; flex-shrink: 0; }
 </style>
+</head>
+<body>
 <canvas id="c"></canvas>
 <div class="controls">
   <div class="row">
-    <div class="row-label">Background</div>
+    <label class="row-label" for="backgroundPicker">Background</label>
     <input type="color" id="backgroundPicker" value="#0a0a0f" />
   </div>
   <div class="row">
-    <div class="row-label">Direction (degrees, 0 = up)</div>
+    <label class="row-label" for="directionInput">Direction (degrees, 0 = up)</label>
     <input type="number" id="directionInput" min="0" max="360" value="90" />
     <div class="btn-group" id="directionPresets">
       <button data-deg="0">Up</button>
@@ -84,44 +89,44 @@
     </div>
   </div>
   <div class="row">
-    <div class="row-label">Fluid effect (hover)</div>
-    <div class="btn-group" id="effectRow"></div>
+    <div class="row-label" id="effectLabel">Fluid effect (hover)</div>
+    <div class="btn-group" id="effectRow" role="group" aria-labelledby="effectLabel"></div>
     <div class="hint">Applies continuously while hovering. Click-burst is temporarily disabled.</div>
   </div>
   <div class="row">
-    <div class="row-label">Speed (px/s)</div>
+    <label class="row-label" for="speedInput">Speed (px/s)</label>
     <input type="number" id="speedInput" min="0" value="120" />
   </div>
   <div class="row">
-    <div class="row-label">Viscosity (0–1)</div>
+    <label class="row-label" for="viscosityInput">Viscosity (0–1)</label>
     <input type="number" id="viscosityInput" min="0" max="1" step="0.05" value="0.5" />
   </div>
   <div class="row">
-    <div class="row-label">Pointer radius (px)</div>
+    <label class="row-label" for="radiusInput">Pointer radius (px)</label>
     <input type="number" id="radiusInput" min="0" value="150" />
   </div>
   <div class="row">
-    <div class="row-label">Pointer strength</div>
+    <label class="row-label" for="strengthInput">Pointer strength</label>
     <input type="number" id="strengthInput" min="0" value="200" />
   </div>
   <div class="row">
-    <div class="row-label">Glitter density</div>
+    <label class="row-label" for="densityInput">Glitter density</label>
     <input type="number" id="densityInput" min="1" value="10" />
-    <div class="hint error" id="densityWarning" style="display: none;">High density causes severe lag (O(n²) separation cost) — keep it under ~50 for smooth performance.</div>
+    <div class="hint error" id="densityWarning" role="alert" style="display: none;">High density causes severe lag (O(n²) separation cost) — keep it under ~50 for smooth performance.</div>
   </div>
   <div class="row">
-    <div class="row-label">Glitter colors</div>
-    <div id="colorList"></div>
+    <div class="row-label" id="colorLabel">Glitter colors</div>
+    <div id="colorList" role="group" aria-labelledby="colorLabel"></div>
     <button id="addColorBtn">+ Add color</button>
   </div>
   <div class="row">
-    <div class="row-label">Export / Import</div>
-    <div class="btn-group">
+    <div class="row-label" id="configLabel">Export / Import</div>
+    <div class="btn-group" role="group" aria-labelledby="configLabel">
       <button id="copyConfigBtn">Copy JSON</button>
       <button id="downloadConfigBtn">Download JSON</button>
       <button id="loadConfigBtn">Load JSON</button>
     </div>
-    <div class="hint" id="configStatus"></div>
+    <div class="hint" id="configStatus" role="status"></div>
   </div>
 </div>
 <script src="glitter-shape.js"></script>
@@ -135,14 +140,17 @@
 
   var canvas = document.getElementById("c");
 
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+  function sizeCanvas() {
+    var ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(window.innerWidth * ratio);
+    canvas.height = Math.round(window.innerHeight * ratio);
+    return ratio;
   }
-  resize();
-  window.addEventListener("resize", resize);
 
-  var glintwave = new Glintwave(canvas, {});
+  var glintwave = new Glintwave(canvas, { pixelRatio: sizeCanvas() });
+  window.addEventListener("resize", function () {
+    glintwave.setOptions({ pixelRatio: sizeCanvas() });
+  });
 
   // ---------- control panel wiring — every control just calls setOptions() ----------
 
@@ -174,7 +182,7 @@
     });
   }
 
-  // Built from FluidEffects' own keys (fluid-effects.js) rather than
+  // Built from Glintwave.effects' own keys (fluid-effects.js) rather than
   // hardcoded buttons, so adding a new effect there is all it takes to get a
   // button here too.
   var effectRow = document.getElementById("effectRow");
@@ -184,7 +192,7 @@
       buttons[b].classList.toggle("active", buttons[b].textContent === effectName);
     }
   }
-  Object.keys(FluidEffects).forEach(function (name, index) {
+  Object.keys(Glintwave.effects).forEach(function (name, index) {
     var btn = document.createElement("button");
     btn.textContent = name;
     if (index === 0) btn.classList.add("active");
@@ -246,6 +254,7 @@
 
       var colorInput = document.createElement("input");
       colorInput.type = "color";
+      colorInput.setAttribute("aria-label", "Color " + (index + 1));
       colorInput.value = entry.color;
       colorInput.addEventListener("input", function () {
         entry.color = colorInput.value;
@@ -256,11 +265,12 @@
       densityInput.type = "number";
       densityInput.min = "0";
       densityInput.max = "100";
+      densityInput.setAttribute("aria-label", "Share of color " + (index + 1) + " in percent");
       densityInput.value = entry.density;
       densityInput.addEventListener("input", function () {
         var value = parseFloat(densityInput.value);
         if (isNaN(value)) return;
-        entry.density = value;
+        entry.density = Math.max(0, value);
         applyColors();
       });
 
@@ -270,6 +280,7 @@
 
       var removeBtn = document.createElement("button");
       removeBtn.textContent = "×";
+      removeBtn.setAttribute("aria-label", "Remove color " + (index + 1));
       removeBtn.addEventListener("click", function () {
         if (colorEntries.length <= 1) return; // always need at least one color
         colorEntries.splice(index, 1);
@@ -358,6 +369,24 @@
     showConfigStatus("Downloaded", false);
   });
 
+  function syncControls(options) {
+    if (/^#[0-9a-f]{6}$/i.test(options.background)) backgroundPicker.value = options.background;
+    directionInput.value = options.direction;
+    syncDirectionButtons(options.direction);
+    document.getElementById("speedInput").value = options.speed;
+    document.getElementById("viscosityInput").value = options.viscosity;
+    document.getElementById("radiusInput").value = options.pointerRadius;
+    document.getElementById("strengthInput").value = options.pointerStrength;
+    densityInput.value = options.glitterDensity;
+    updateDensityWarning();
+    syncEffectButtons(options.fluidEffect);
+    colorEntries.length = 0;
+    options.glitterColors.forEach(function (entry) {
+      colorEntries.push({ color: entry.color, density: entry.density });
+    });
+    renderColorList();
+  }
+
   document.getElementById("loadConfigBtn").addEventListener("click", function () {
     var text = window.prompt("Paste a Glintwave config JSON:");
     if (text === null) return; // user cancelled the prompt
@@ -366,49 +395,12 @@
       showConfigStatus(result.error, true);
       return;
     }
-    var config = result.config;
-
-    if (config.glitterColors !== undefined) {
-      var glitterColorsValid = Array.isArray(config.glitterColors) && config.glitterColors.length > 0;
-      if (glitterColorsValid) {
-        for (var gi = 0; gi < config.glitterColors.length; gi++) {
-          var entry = config.glitterColors[gi];
-          if (!entry || typeof entry !== "object" || entry.color === undefined || typeof entry.density !== "number") {
-            glitterColorsValid = false;
-            break;
-          }
-        }
-      }
-      if (!glitterColorsValid) {
-        showConfigStatus("Invalid glitterColors", true);
-        return;
-      }
-    }
-
-    if (config.background !== undefined) backgroundPicker.value = config.background;
-    if (config.direction !== undefined) {
-      directionInput.value = config.direction;
-      syncDirectionButtons(config.direction);
-    }
-    if (config.speed !== undefined) document.getElementById("speedInput").value = config.speed;
-    if (config.viscosity !== undefined) document.getElementById("viscosityInput").value = config.viscosity;
-    if (config.pointerRadius !== undefined) document.getElementById("radiusInput").value = config.pointerRadius;
-    if (config.pointerStrength !== undefined) document.getElementById("strengthInput").value = config.pointerStrength;
-    if (config.glitterDensity !== undefined) {
-      densityInput.value = config.glitterDensity;
-      updateDensityWarning();
-    }
-    if (config.fluidEffect !== undefined) syncEffectButtons(config.fluidEffect);
-    if (Array.isArray(config.glitterColors)) {
-      colorEntries.length = 0;
-      config.glitterColors.forEach(function (entry) {
-        colorEntries.push({ color: entry.color, density: entry.density });
-      });
-      renderColorList();
-    }
-
-    glintwave.setOptions(config);
-    showConfigStatus("Loaded", false);
+    var ignored = glintwave.setOptions(result.config);
+    syncControls(glintwave.options);
+    if (ignored.length > 0) showConfigStatus("Loaded, ignored invalid: " + ignored.join(", "), true);
+    else showConfigStatus("Loaded", false);
   });
 })();
 </script>
+</body>
+</html>
